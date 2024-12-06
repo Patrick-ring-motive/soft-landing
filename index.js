@@ -23,6 +23,18 @@
         return fn && new fn(...args);
     };
 
+    const serializer = newQ(globalThis.XMLSerializer);
+    const serializeXML = (node) => serializer?.serializeToString?.(node);
+    const bytes = (buff) => new Uint8Array(buff);
+    const encoder = newQ(globalThis.TextEncoder);
+    const encode = (str) =>
+        encoder?.encode?.(str) ?? bytes([...str].map((x) => x.charCodeAt()));
+    const buffer = (str) => encode(str).buffer;
+    const decoder = newQ(globalThis.TextDecoder);
+    const decode = (byte) =>
+        decoder?.decode?.(byte) ?? String.fromCharCode(...byte);
+    const text = (buff) => decode(bytes(buff));
+
     const objDoProp = function (obj, prop, def, enm, mut) {
         return Object.defineProperty(obj, prop, {
             value: def,
@@ -105,6 +117,24 @@
                 },
             );
         }
+    });
+    const arrayBuffer = Symbol("arrayBuffer");
+    objDefProp(Request.prototype, arrayBuffer, Request.prototype.arrayBuffer);
+    objDefEnum(Request.prototype, "arrayBuffer", async function arrayBuffer() {
+        if (!this["&buffer"]) {
+            this["&buffer"] = await this[arrayBuffer]();
+            objDefEnum(this, "arrayBuffer", function arrayBuffer() {
+                return this["&buffer"];
+            });
+            objDefEnum(this, "text", function text() {
+                try{
+                    return text(this["&buffer"]);
+                }catch(e){
+                    return String.fromCharCode(...bytes(this["&buffer"]));
+                }
+            });
+        }
+        return this["&buffer"];
     });
 })?.();
 
